@@ -75,7 +75,7 @@ epsilon  = 1.0e-3;
 lambda   = 1e+2;    % 初期点で用いる
 alphaMin = 1.04-4;  % alphaの下限, alphaはステップ幅
 auxMIn   = 1.0e-6;  % kappa, tauの下限
-maxIter  = 5;    % 内点法の最大反復回数
+maxIter  = 15;    % 内点法の最大反復回数
 
 zeta = 1; % Writeのテキストで1
 [m, n] = size(A);
@@ -162,8 +162,6 @@ while iter < maxIter
 	G_bar = A(:, denseIndex+1:n)*diag_x(denseIndex+1:n, denseIndex+1:n)* ...
                         diag_s_inv(denseIndex+1:n, denseIndex+1:n)*A(:, denseIndex+1:n).';
                     
-    assignin('base','G_bar', G_bar);
-    
 	B_u1 = solveSchur(A, G_bar, U_dense, V_dense, diag_x, diag_s_inv, ...
 						-b, c, zeros(n,1), denseIndex);
 	B_u2 = solveSchur(A, G_bar, U_dense, V_dense, diag_x, diag_s_inv, ...
@@ -171,7 +169,6 @@ while iter < maxIter
 	B_r  = solveSchur(A, G_bar, U_dense, V_dense, diag_x, diag_s_inv, ...
 						r_p + tau_zeta * b - theta_zeta * q_p, ...
 						r_d - tau_zeta * c + theta_zeta * q_d, r_u, denseIndex);
-
     
 	V = sparse([tau_c, theta_c; tau_b, theta_b; zeros(n, 1), zeros(n, 1)]);
 	B_U = [B_u1, B_u2];
@@ -296,7 +293,7 @@ r = a_p - A * diag_s_inv * (a_u + diag_x*a_d);
 
 
 %[zeta, ~] = pcg(G_bar, r, 1e-6, 20);
-zeta = CGMethod(G_bar, r, 1e-3, 20);
+zeta = CGMethod(G_bar, r, 1e-3, 100);
 if false
     G_U = zeros(m, denseIndex);
     for i = 1:denseIndex
@@ -305,7 +302,7 @@ if false
     end
 end
 if true
-    G_U = CGMethodMat(G_bar, U_dense, 1e-3, 20, denseIndex);
+    G_U = CGMethodMat(G_bar, U_dense, 1e-0, 100, denseIndex);
 end
 %fprintf('fro = %f\n', norm((G_U_test - G_U), 'fro'));
 
@@ -405,4 +402,19 @@ end
 fprintf('iter_mat = %d\n', i);
 x_opt_mat = x_new;
 
+end
+
+
+function [output_mat] = calculation(D, S_1, S_2, S_3)
+% sparse と dense について分けて計算をする
+% [D, S_1; S_2, S_3] * [D, S_1; S_2, S_3]^T
+
+tmp1 = D*S_2.';
+
+out_1_1 = D*D.' + S_1*S_1.';
+out_1_2 = D*S_2.' + S_1*S_3.';
+out_2_1 = S_2*D.' + S_3*S_1.';
+out_2_2 = S_2*S_2.' + S_3*S_3.';
+
+output_mat = [out_1_1, out_1_2; out_2_1, out_2_2];
 end
